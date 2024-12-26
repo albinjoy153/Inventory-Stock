@@ -1,0 +1,144 @@
+﻿@page "/addproduct"
+@using InventoryProject.Model
+@inject HttpClient HttpClient
+
+<h3 class="text-center my-4">Add Product</h3>
+
+<EditForm Model="@product" OnValidSubmit="HandleSubmit">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div class="container">
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <label for="productCode" class="form-label">Product Code:</label>
+                <InputText id="productCode" class="form-control" @bind-Value="product.ProductCode" />
+                <ValidationMessage For="@(() => product.ProductCode)" />
+            </div>
+            <div class="col-md-6">
+                <label for="productName" class="form-label">Product Name:</label>
+                <InputText id="productName" class="form-control" @bind-Value="product.ProductName" />
+                <ValidationMessage For="@(() => product.ProductName)" />
+            </div>
+        </div>
+
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <label for="hsnCode" class="form-label">HSN Code:</label>
+                <InputText id="hsnCode" class="form-control" @bind-Value="product.HSNCode" />
+                <ValidationMessage For="@(() => product.HSNCode)" />
+            </div>
+            <div class="col-md-6">
+                <label for="totalStock" class="form-label">Total Stock:</label>
+                <InputNumber id="totalStock" class="form-control" @bind-Value="product.TotalStock" />
+                <ValidationMessage For="@(() => product.TotalStock)" />
+            </div>
+        </div>
+
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <label for="isFavourite" class="form-label">Is Favourite:</label>
+                <InputCheckbox id="isFavourite" @bind-Value="product.IsFavourite" />
+            </div>
+            <div class="col-md-6">
+                <label for="active" class="form-label">Active:</label>
+                <InputCheckbox id="active" @bind-Value="product.Active" />
+            </div>
+        </div>
+
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <label for="productImage" class="form-label">Product Image:</label>
+                <InputFile id="productImage" OnChange="HandleFileChange" />
+                @if (!string.IsNullOrEmpty(imagePreviewUrl))
+                {
+                    <img src="@imagePreviewUrl" class="img-thumbnail mt-2" style="max-width: 150px;" />
+                }
+            </div>
+            <div class="col-md-6">
+                <label for="variants" class="form-label">Variants:</label>
+                <select class="form-select" id="variants" @onchange="HandleVariantChange">
+                    @foreach (var variant in Variants)
+                    {
+                        <option value="@variant.Name">@variant.Name</option>
+                    }
+                </select>
+                <ValidationMessage For="@(() => selectedVariant)" />
+            </div>
+        </div>
+
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <label for="variantOptions" class="form-label">Variant Options:</label>
+                <select class="form-select" id="variantOptions" @onchange="HandleOptionChange">
+                    @foreach (var option in selectedVariantOptions)
+                    {
+                        <option value="@option">@option</option>
+                    }
+                </select>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-12 text-center">
+                <button type="submit" class="btn btn-primary px-4">Submit</button>
+            </div>
+        </div>
+    </div>
+</EditForm>
+
+@if (submissionSuccess)
+{
+    <div class="alert alert-success text-center mt-4">
+        Product added successfully!
+    </div>
+}
+
+@code {
+    private ProductModel product = new ProductModel();
+    private List<Variant> Variants = new List<Variant>();
+    private string selectedVariant;
+    private List<string> selectedVariantOptions = new();
+    private bool submissionSuccess = false;
+    private string imagePreviewUrl; // Declare the variable for the image preview URL
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Fetch variants from API
+        Variants = await HttpClient.GetFromJsonAsync<List<Variant>>("api/variants");
+    }
+
+    private async Task HandleSubmit()
+    {
+        // Handle form submission
+        submissionSuccess = true;
+    }
+
+    private async Task HandleFileChange(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+
+        // Create a buffer to hold the file's content
+        using var stream = file.OpenReadStream();
+        byte[] buffer = new byte[file.Size];
+        await stream.ReadAsync(buffer, 0, buffer.Length);
+
+        // Store the raw byte data into the ProductImage property
+        product.ProductImage = buffer;
+
+        // Optional: You can display a preview of the image if needed
+        var base64String = Convert.ToBase64String(buffer);
+        imagePreviewUrl = $"data:{file.ContentType};base64,{base64String}";
+    }
+
+    private void HandleVariantChange(ChangeEventArgs e)
+    {
+        selectedVariant = e.Value.ToString();
+        selectedVariantOptions = Variants.FirstOrDefault(v => v.Name == selectedVariant)?.Options ?? new List<string>();
+    }
+
+    private void HandleOptionChange(ChangeEventArgs e)
+    {
+        // Option selected
+    }
+}
